@@ -1,0 +1,25 @@
+{
+  "name": "sysfnos",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted infrastructure and AI upstream monitoring for NAS deployments",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "apps/server",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c green,cyan \"npm run dev -w @sysfnos/server\" \"npm run dev -w @sysfnos/web\"",
+    "build": "npm run build -w @sysfnos/web && npm run build -w @sysfnos/server",
+    "start": "npm run start -w @sysfnos/server",
+    "test": "npm run test -w @sysfnos/server && npm run test -w @sysfnos/web",
+    "typecheck": "npm run typecheck -w @sysfnos/server && npm run typecheck -w @sysfnos/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
