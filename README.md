@@ -1,8 +1,10 @@
-# SysFNOS
+# OmniDeck
 
-SysFNOS is a self-hosted operations console for infrastructure, public endpoints, FRP links, and OpenAI-compatible upstreams. It is designed for a NAS-hosted control plane with lightweight agents on Linux and Windows nodes.
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-The project is currently in active `0.1.x` development. Database migrations are automatic, but production deployments should still be backed up before upgrading.
+OmniDeck is a self-hosted control and observability platform for services, infrastructure, data sources, alerts, and automation. The current `0.1.x` implementation monitors infrastructure, public endpoints, FRP links, and OpenAI-compatible upstreams, with lightweight agents on Linux and Windows nodes.
+
+OmniDeck is being developed toward a modular platform with shared authentication, permissions, navigation, notifications, jobs, and integration contracts. These extension interfaces are not stable yet. Database migrations are automatic, but production deployments should still be backed up before upgrading.
 
 ## Features
 
@@ -16,7 +18,7 @@ The project is currently in active `0.1.x` development. Database migrations are 
 - Distributed probes assigned from the UI to selected agents.
 - Alert and recovery history with SMTP notifications.
 - Prometheus metrics with per-location labels and 90-day retention.
-- Grafana dashboards behind the same SysFNOS login session.
+- Grafana dashboards behind the same OmniDeck login session.
 - Docker Compose deployment with no database, Prometheus, or Grafana port exposed publicly.
 
 ## Architecture
@@ -25,7 +27,7 @@ The project is currently in active `0.1.x` development. Database migrations are 
 Browser
   -> HTTPS edge / FRP
   -> gateway:3200
-     -> SysFNOS app:3000
+     -> OmniDeck app:3000
      -> Grafana:3000 (auth_request SSO)
 
 Linux / Windows agents
@@ -39,7 +41,7 @@ Prometheus
   -> Grafana datasource
 ```
 
-The central SysFNOS instance always executes each enabled probe. Agents provide additional geographic and network perspectives. Probe API keys are encrypted at rest on the control plane, sent only to assigned authenticated agents over HTTPS, held in memory, and never written into agent configuration.
+The central OmniDeck instance always executes each enabled probe. Agents provide additional geographic and network perspectives. Probe API keys are encrypted at rest on the control plane, sent only to assigned authenticated agents over HTTPS, held in memory, and never written into agent configuration.
 
 ## Quick Start
 
@@ -76,7 +78,7 @@ From Windows PowerShell:
 
 ./scripts/deploy-fnos.ps1 `
   -SshHost "fnos" `
-  -RemoteDirectory "/vol1/docker/sysfnos"
+  -RemoteDirectory "/vol1/docker/omnideck"
 ```
 
 The deployment exposes only `127.0.0.1:3200` on the NAS. Point a local reverse proxy or FRP client at that port. See [docs/deployment.md](docs/deployment.md).
@@ -87,7 +89,7 @@ Build the agent with a local Go toolchain:
 
 ```bash
 cd agent
-go build -o sysfnos-agent .
+go build -o omnideck-agent .
 ```
 
 Or use Docker:
@@ -97,19 +99,19 @@ Or use Docker:
 ./scripts/build-agent.ps1 -TargetOS linux -TargetArch amd64
 ```
 
-Create a node in the SysFNOS UI and run the generated installation command as Administrator/root:
+Create a node in the OmniDeck UI and run the generated installation command as Administrator/root:
 
 The UI downloads build artifacts from the deployment's `/downloads/` path and installs the agent as a boot service. A node token rotation immediately invalidates the existing installation, so run the newly generated command after rotating.
 
 ```powershell
-sysfnos-agent.exe install `
+omnideck-agent.exe install `
   --server https://sys.example.com `
   --token ONE_TIME_NODE_TOKEN `
   --services frpc,OpenCode
 ```
 
 ```bash
-sudo ./sysfnos-agent install \
+sudo ./omnideck-agent install \
   --server https://sys.example.com \
   --token ONE_TIME_NODE_TOKEN \
   --services frpc,docker
@@ -145,4 +147,4 @@ Never commit `.env`, files under `deploy/secrets/`, runtime databases, or genera
 
 ## License
 
-SysFNOS source code is licensed under the [Apache License 2.0](LICENSE). Bundled and referenced third-party components retain their own licenses, including Grafana, Prometheus, Nginx, React, and their dependencies.
+The source code in this repository is licensed under the [Apache License 2.0](LICENSE). Bundled and referenced third-party components retain their own licenses, including Grafana, Prometheus, Nginx, React, and their dependencies.

@@ -18,7 +18,7 @@ On-demand VMs should be configured with `alertOnOffline=false`. They retain thei
 
 ### Prometheus and Grafana
 
-Prometheus scrapes the app's bearer-authenticated private metrics endpoint. Labels include stable internal IDs, display names, and the probe location. Grafana is not publicly exposed directly. Nginx `auth_request` validates the SysFNOS session and maps application `admin`/`viewer` roles to Grafana `Admin`/`Viewer` organization roles.
+Prometheus scrapes the app's bearer-authenticated private metrics endpoint. Labels include stable internal IDs, display names, and the probe location. Grafana is not publicly exposed directly. Nginx `auth_request` validates the OmniDeck session and maps application `admin`/`viewer` roles to Grafana `Admin`/`Viewer` organization roles.
 
 ### Gateway
 

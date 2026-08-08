@@ -1,20 +1,20 @@
 {
-  "name": "sysfnos",
+  "name": "omnideck",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Self-hosted infrastructure and AI upstream monitoring for NAS deployments",
+  "description": "Self-hosted control and observability platform for services, infrastructure, data sources, alerts, and automation",
   "license": "Apache-2.0",
   "workspaces": [
     "apps/server",
     "apps/web"
   ],
   "scripts": {
-    "dev": "concurrently -n server,web -c green,cyan \"npm run dev -w @sysfnos/server\" \"npm run dev -w @sysfnos/web\"",
-    "build": "npm run build -w @sysfnos/web && npm run build -w @sysfnos/server",
-    "start": "npm run start -w @sysfnos/server",
-    "test": "npm run test -w @sysfnos/server && npm run test -w @sysfnos/web",
-    "typecheck": "npm run typecheck -w @sysfnos/server && npm run typecheck -w @sysfnos/web"
+    "dev": "concurrently -n server,web -c green,cyan \"npm run dev -w @omnideck/server\" \"npm run dev -w @omnideck/web\"",
+    "build": "npm run build -w @omnideck/web && npm run build -w @omnideck/server",
+    "start": "npm run start -w @omnideck/server",
+    "test": "npm run test -w @omnideck/server && npm run test -w @omnideck/web",
+    "typecheck": "npm run typecheck -w @omnideck/server && npm run typecheck -w @omnideck/web"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

@@ -10,7 +10,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $outputDirectory = Join-Path $root "agent\bin"
 New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 $extension = if ($TargetOS -eq "windows") { ".exe" } else { "" }
-$output = Join-Path $outputDirectory "sysfnos-agent-$TargetOS-$TargetArch$extension"
+$output = Join-Path $outputDirectory "omnideck-agent-$TargetOS-$TargetArch$extension"
 
 docker buildx build `
     --file (Join-Path $root "agent\Dockerfile") `
@@ -19,6 +19,6 @@ docker buildx build `
     --output "type=local,dest=$outputDirectory\artifact" `
     (Join-Path $root "agent")
 
-Move-Item -Force (Join-Path $outputDirectory "artifact\sysfnos-agent") $output
+Move-Item -Force (Join-Path $outputDirectory "artifact\omnideck-agent") $output
 Remove-Item -Recurse -Force (Join-Path $outputDirectory "artifact")
 $output

@@ -1,4 +1,4 @@
-module github.com/sysfnos/sysfnos/agent
+module github.com/Aezakmi814/OmniDeck/agent
 
 go 1.24.0
 

@@ -121,14 +121,14 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "Usage: sysfnos-agent <run|install|version> [options]")
+	fmt.Fprintln(os.Stderr, "Usage: omnideck-agent <run|install|version> [options]")
 }
 
 func defaultConfigPath() string {
 	if runtime.GOOS == "windows" {
-		return filepath.Join(os.Getenv("ProgramData"), "SysFNOS", "agent.json")
+		return filepath.Join(os.Getenv("ProgramData"), "OmniDeck", "agent.json")
 	}
-	return "/etc/sysfnos-agent/agent.json"
+	return "/etc/omnideck-agent/agent.json"
 }
 
 func readConfig(path string) (Config, error) {
@@ -278,7 +278,7 @@ func reportOnce(client *http.Client, config Config) error {
 	}
 	request.Header.Set("Authorization", "Bearer "+config.Token)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "sysfnos-agent/"+version)
+	request.Header.Set("User-Agent", "omnideck-agent/"+version)
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -299,7 +299,7 @@ func runAssignedProbes(client *http.Client, config Config, lastRuns map[string]t
 		return err
 	}
 	request.Header.Set("Authorization", "Bearer "+config.Token)
-	request.Header.Set("User-Agent", "sysfnos-agent/"+version)
+	request.Header.Set("User-Agent", "omnideck-agent/"+version)
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -467,7 +467,7 @@ func submitProbeResult(client *http.Client, config Config, result ProbeResult) e
 	}
 	request.Header.Set("Authorization", "Bearer "+config.Token)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "sysfnos-agent/"+version)
+	request.Header.Set("User-Agent", "omnideck-agent/"+version)
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -482,7 +482,7 @@ func submitProbeResult(client *http.Client, config Config, result ProbeResult) e
 
 func installCommand(args []string) error {
 	flags := flag.NewFlagSet("install", flag.ContinueOnError)
-	server := flags.String("server", "", "SysFNOS server URL")
+	server := flags.String("server", "", "OmniDeck server URL")
 	token := flags.String("token", "", "one-time node enrollment token")
 	interval := flags.Int("interval", 30, "report interval in seconds")
 	services := flags.String("services", "", "comma-separated service names")
@@ -534,11 +534,11 @@ func copyExecutable(target string) error {
 }
 
 func installWindows(config Config) error {
-	directory := filepath.Join(os.Getenv("ProgramData"), "SysFNOS")
+	directory := filepath.Join(os.Getenv("ProgramData"), "OmniDeck")
 	if err := os.MkdirAll(directory, 0700); err != nil {
 		return fmt.Errorf("create install directory (run as Administrator): %w", err)
 	}
-	executable := filepath.Join(directory, "sysfnos-agent.exe")
+	executable := filepath.Join(directory, "omnideck-agent.exe")
 	configPath := filepath.Join(directory, "agent.json")
 	if err := copyExecutable(executable); err != nil {
 		return err
@@ -548,13 +548,13 @@ func installWindows(config Config) error {
 	}
 	_ = exec.Command("icacls.exe", directory, "/inheritance:r", "/grant:r", "*S-1-5-18:(OI)(CI)F", "*S-1-5-32-544:(OI)(CI)F").Run()
 	taskCommand := fmt.Sprintf("\"%s\" run --config \"%s\"", executable, configPath)
-	if output, err := exec.Command("schtasks.exe", "/Create", "/TN", "SysFNOS Agent", "/SC", "ONSTART", "/RU", "SYSTEM", "/RL", "HIGHEST", "/TR", taskCommand, "/F").CombinedOutput(); err != nil {
+	if output, err := exec.Command("schtasks.exe", "/Create", "/TN", "OmniDeck Agent", "/SC", "ONSTART", "/RU", "SYSTEM", "/RL", "HIGHEST", "/TR", taskCommand, "/F").CombinedOutput(); err != nil {
 		return fmt.Errorf("create scheduled task: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	if output, err := exec.Command("schtasks.exe", "/Run", "/TN", "SysFNOS Agent").CombinedOutput(); err != nil {
+	if output, err := exec.Command("schtasks.exe", "/Run", "/TN", "OmniDeck Agent").CombinedOutput(); err != nil {
 		return fmt.Errorf("start scheduled task: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	fmt.Println("SysFNOS Agent installed and started")
+	fmt.Println("OmniDeck Agent installed and started")
 	return nil
 }
 
@@ -562,11 +562,11 @@ func installLinux(config Config) error {
 	if os.Geteuid() != 0 {
 		return errors.New("installation requires root; run with sudo")
 	}
-	directory := "/etc/sysfnos-agent"
+	directory := "/etc/omnideck-agent"
 	if err := os.MkdirAll(directory, 0700); err != nil {
 		return err
 	}
-	executable := "/usr/local/bin/sysfnos-agent"
+	executable := "/usr/local/bin/omnideck-agent"
 	configPath := filepath.Join(directory, "agent.json")
 	if err := copyExecutable(executable); err != nil {
 		return err
@@ -575,13 +575,13 @@ func installLinux(config Config) error {
 		return err
 	}
 	unit := `[Unit]
-Description=SysFNOS monitoring agent
+Description=OmniDeck monitoring agent
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/sysfnos-agent run --config /etc/sysfnos-agent/agent.json
+ExecStart=/usr/local/bin/omnideck-agent run --config /etc/omnideck-agent/agent.json
 Restart=always
 RestartSec=10
 NoNewPrivileges=true
@@ -592,15 +592,15 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 `
-	if err := os.WriteFile("/etc/systemd/system/sysfnos-agent.service", []byte(unit), 0644); err != nil {
+	if err := os.WriteFile("/etc/systemd/system/omnideck-agent.service", []byte(unit), 0644); err != nil {
 		return err
 	}
 	if output, err := exec.Command("systemctl", "daemon-reload").CombinedOutput(); err != nil {
 		return fmt.Errorf("systemd reload: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	if output, err := exec.Command("systemctl", "enable", "--now", "sysfnos-agent.service").CombinedOutput(); err != nil {
+	if output, err := exec.Command("systemctl", "enable", "--now", "omnideck-agent.service").CombinedOutput(); err != nil {
 		return fmt.Errorf("start service: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	fmt.Println("SysFNOS Agent installed and started")
+	fmt.Println("OmniDeck Agent installed and started")
 	return nil
 }

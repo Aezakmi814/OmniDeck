@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: SysFNOS
+  - name: OmniDeck
     orgId: 1
-    folder: SysFNOS
+    folder: OmniDeck
     type: file
     disableDeletion: true
     updateIntervalSeconds: 30

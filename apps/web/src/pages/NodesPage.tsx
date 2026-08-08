@@ -62,8 +62,8 @@ export function NodesPage() {
   }
 
   const installCommand = form.platform === "windows"
-    ? `$agent = Join-Path $env:TEMP 'sysfnos-agent.exe'; Invoke-WebRequest '${window.location.origin}/downloads/sysfnos-agent-windows-amd64.exe' -OutFile $agent; & $agent install --server '${window.location.origin}' --token '${token}'`
-    : `curl -fsSL '${window.location.origin}/downloads/sysfnos-agent-linux-amd64' -o /tmp/sysfnos-agent && chmod +x /tmp/sysfnos-agent && sudo /tmp/sysfnos-agent install --server '${window.location.origin}' --token '${token}'`;
+    ? `$agent = Join-Path $env:TEMP 'omnideck-agent.exe'; Invoke-WebRequest '${window.location.origin}/downloads/omnideck-agent-windows-amd64.exe' -OutFile $agent; & $agent install --server '${window.location.origin}' --token '${token}'`
+    : `curl -fsSL '${window.location.origin}/downloads/omnideck-agent-linux-amd64' -o /tmp/omnideck-agent && chmod +x /tmp/omnideck-agent && sudo /tmp/omnideck-agent install --server '${window.location.origin}' --token '${token}'`;
 
   return (
     <div className="page-stack">

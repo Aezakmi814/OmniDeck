@@ -26,7 +26,7 @@ export default function App() {
     if (user && user.role !== "admin" && (path === "/users" || path === "/settings") && !user.mustChangePassword) navigate("/", true);
   }, [loading, path, user]);
 
-  if (loading) return <div className="app-loading"><span className="loading-pulse" /><strong>SysFNOS</strong></div>;
+  if (loading) return <div className="app-loading"><span className="loading-pulse" /><strong>OmniDeck</strong></div>;
   if (!user) return <LoginPage />;
 
   let page: React.ReactNode;

@@ -5,7 +5,7 @@ WORKDIR /src
 COPY go.mod ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o /out/sysfnos-agent ./main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o /out/omnideck-agent ./main.go
 
 FROM scratch AS artifact
-COPY --from=build /out/sysfnos-agent /sysfnos-agent
+COPY --from=build /out/omnideck-agent /omnideck-agent

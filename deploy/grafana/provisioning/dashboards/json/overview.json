@@ -6,43 +6,43 @@
   "links": [],
   "panels": [
     {
-      "datasource": { "type": "prometheus", "uid": "sysfnos-prometheus" },
+      "datasource": { "type": "prometheus", "uid": "omnideck-prometheus" },
       "fieldConfig": { "defaults": { "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } }, "overrides": [] },
       "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
       "id": 1,
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
-      "targets": [{ "expr": "sum(sysfnos_node_up)", "refId": "A" }],
+      "targets": [{ "expr": "sum(omnideck_node_up)", "refId": "A" }],
       "title": "Online nodes",
       "type": "stat"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "sysfnos-prometheus" },
+      "datasource": { "type": "prometheus", "uid": "omnideck-prometheus" },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
       "id": 2,
       "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sysfnos_ai_ttft_seconds", "legendFormat": "{{name}}", "refId": "A" }],
+      "targets": [{ "expr": "omnideck_ai_ttft_seconds", "legendFormat": "{{name}}", "refId": "A" }],
       "title": "AI time to first token",
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "sysfnos-prometheus" },
+      "datasource": { "type": "prometheus", "uid": "omnideck-prometheus" },
       "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
       "id": 3,
       "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sysfnos_node_cpu_percent", "legendFormat": "{{name}}", "refId": "A" }],
+      "targets": [{ "expr": "omnideck_node_cpu_percent", "legendFormat": "{{name}}", "refId": "A" }],
       "title": "Node CPU",
       "type": "timeseries"
     }
   ],
   "refresh": "30s",
   "schemaVersion": 42,
-  "tags": ["sysfnos"],
+  "tags": ["omnideck"],
   "templating": { "list": [] },
   "time": { "from": "now-24h", "to": "now" },
   "timezone": "browser",
-  "title": "SysFNOS Overview",
-  "uid": "sysfnos-overview",
+  "title": "OmniDeck Overview",
+  "uid": "omnideck-overview",
   "version": 1
 }

@@ -1,4 +1,4 @@
-name: sysfnos
+name: omnideck
 
 services:
   app:
@@ -8,7 +8,7 @@ services:
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org/}
         GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
-    image: sysfnos/app:local
+    image: omnideck/app:local
     restart: unless-stopped
     env_file: .env
     environment:

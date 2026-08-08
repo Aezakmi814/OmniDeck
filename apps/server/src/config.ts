@@ -36,12 +36,12 @@ if (isProduction && !parsed.METRICS_TOKEN) {
 
 mkdirSync(parsed.DATA_DIR, { recursive: true });
 
-const encryptionMaterial = parsed.APP_ENCRYPTION_KEY ?? "sysfnos-development-key";
+const encryptionMaterial = parsed.APP_ENCRYPTION_KEY ?? "omnideck-development-key";
 
 export const config = {
   ...parsed,
   isProduction,
-  databasePath: resolve(parsed.DATA_DIR, "sysfnos.db"),
+  databasePath: resolve(parsed.DATA_DIR, "omnideck.db"),
   webRoot: parsed.WEB_ROOT ?? resolve(fileURLToPath(new URL(".", import.meta.url)), "../../../dist/web"),
   agentBinDir: parsed.AGENT_BIN_DIR ?? resolve(process.cwd(), "agent", "bin"),
   encryptionKey: createHash("sha256").update(encryptionMaterial).digest(),

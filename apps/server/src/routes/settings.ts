@@ -49,7 +49,7 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
     const actor = requireAdmin(request, reply);
     if (!actor) return;
     try {
-      await sendMail("[SysFNOS] 邮件配置测试", `邮件通知已配置成功。\n\n测试时间：${new Date().toISOString()}`);
+      await sendMail("[OmniDeck] 邮件配置测试", `邮件通知已配置成功。\n\n测试时间：${new Date().toISOString()}`);
       audit(actor.id, "settings.smtp_test", "settings", "smtp", {}, request.ip);
       return { ok: true };
     } catch (error) {

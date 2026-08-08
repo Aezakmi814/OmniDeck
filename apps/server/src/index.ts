@@ -51,12 +51,12 @@ await metricsRoutes(app);
 app.get("/api/health", async () => ({ status: "ok", version: "0.1.0", time: new Date().toISOString() }));
 
 const agentDownloads: Record<string, { file: string; type: string }> = {
-  "sysfnos-agent-windows-amd64.exe": {
-    file: "sysfnos-agent-windows-amd64.exe",
+  "omnideck-agent-windows-amd64.exe": {
+    file: "omnideck-agent-windows-amd64.exe",
     type: "application/vnd.microsoft.portable-executable",
   },
-  "sysfnos-agent-linux-amd64": {
-    file: "sysfnos-agent-linux-amd64",
+  "omnideck-agent-linux-amd64": {
+    file: "omnideck-agent-linux-amd64",
     type: "application/octet-stream",
   },
 };

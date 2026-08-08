@@ -12,7 +12,7 @@ Include the affected version, deployment topology, reproduction steps, and poten
 
 ## Deployment requirements
 
-- Put SysFNOS behind HTTPS before using it across a network.
+- Put OmniDeck behind HTTPS before using it across a network.
 - Keep `.env`, `deploy/secrets/`, SQLite volumes, and backups readable only by administrators.
 - Rotate the initial root password immediately after first login.
 - Use separate low-quota API keys for monitoring probes.

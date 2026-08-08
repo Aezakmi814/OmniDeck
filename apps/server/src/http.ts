@@ -4,7 +4,7 @@ import { db, one } from "./db.js";
 import { hashToken } from "./security.js";
 import type { SessionUser, UserRow } from "./types.js";
 
-export const SESSION_COOKIE = "sysfnos_session";
+export const SESSION_COOKIE = "omnideck_session";
 
 export function parseBody<T>(schema: ZodType<T>, value: unknown, reply: FastifyReply): T | undefined {
   const result = schema.safeParse(value);

@@ -30,7 +30,7 @@ export function LoginPage() {
       <section className="login-panel">
         <div className="login-brand">
           <span className="brand-mark brand-mark-large"><Activity size={24} /></span>
-          <div><strong>SysFNOS</strong><span>Infrastructure Console</span></div>
+          <div><strong>OmniDeck</strong><span>Unified Operations Console</span></div>
         </div>
         <div className="login-heading">
           <span className="environment-tag">PRIVATE OPERATIONS</span>

@@ -26,7 +26,7 @@ Use a TCP proxy from a loopback-only public relay port to NAS loopback port `320
 
 ```toml
 [[proxies]]
-name = "sysfnos"
+name = "omnideck"
 type = "tcp"
 localIP = "127.0.0.1"
 localPort = 3200
@@ -41,7 +41,7 @@ Stop writes or stop the app container before taking a volume-level SQLite backup
 
 ```bash
 docker compose stop app
-docker run --rm -v sysfnos_app-data:/data -v "$PWD/backups:/backup" alpine \
+docker run --rm -v omnideck_app-data:/data -v "$PWD/backups:/backup" alpine \
   tar -czf "/backup/app-data-$(date +%F).tar.gz" -C /data .
 docker compose start app
 ```

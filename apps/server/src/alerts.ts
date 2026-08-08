@@ -30,7 +30,7 @@ export async function updateAlertState(
       VALUES (?, ?, ?, ?, ?, ?, 'open', ?)
     `).run(id, sourceType, sourceId, severity, title, message.slice(0, 2000), now);
     try {
-      await sendMail(`[SysFNOS] ${title}`, `${message}\n\n发生时间：${now}`);
+      await sendMail(`[OmniDeck] ${title}`, `${message}\n\n发生时间：${now}`);
       db.prepare("UPDATE alerts SET notified_at = ? WHERE id = ?").run(nowIso(), id);
     } catch (error) {
       console.error("Failed to send alert email", error);
@@ -41,7 +41,7 @@ export async function updateAlertState(
     const now = nowIso();
     db.prepare("UPDATE alerts SET status = 'resolved', resolved_at = ? WHERE id = ?").run(now, openAlert.id);
     try {
-      await sendMail(`[SysFNOS] 已恢复：${openAlert.title}`, `服务已恢复。\n\n恢复时间：${now}`);
+      await sendMail(`[OmniDeck] 已恢复：${openAlert.title}`, `服务已恢复。\n\n恢复时间：${now}`);
     } catch (error) {
       console.error("Failed to send recovery email", error);
     }

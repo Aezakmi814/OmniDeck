@@ -56,7 +56,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
         <div className="brand">
           <span className="brand-mark"><Activity size={20} /></span>
-          <span><strong>SysFNOS</strong><small>Operations</small></span>
+          <span><strong>OmniDeck</strong><small>Operations</small></span>
           <button className="sidebar-close" onClick={() => setMenuOpen(false)} title="关闭菜单"><X size={19} /></button>
         </div>
         <nav className="sidebar-nav" aria-label="主导航">
@@ -86,7 +86,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <button className="mobile-menu" onClick={() => setMenuOpen(true)} title="打开菜单"><Menu size={20} /></button>
             <div>
               <span>控制台</span>
-              <h1>{pageTitles[path] ?? "SysFNOS"}</h1>
+              <h1>{pageTitles[path] ?? "OmniDeck"}</h1>
             </div>
           </div>
           <div className="account-wrap">

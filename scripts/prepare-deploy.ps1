@@ -34,7 +34,7 @@ function New-RandomToken([int]$Bytes) {
 
 $encryptionKey = New-RandomHex 32
 $metricsToken = New-RandomToken 36
-$initialPassword = "Sfn-$(New-RandomToken 18)"
+$initialPassword = "Omni-$(New-RandomToken 18)"
 $lines = @(
     "APP_URL=$AppUrl",
     "NODE_ENV=production",
