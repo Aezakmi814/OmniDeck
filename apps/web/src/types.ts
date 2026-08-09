@@ -9,6 +9,9 @@ export interface User {
   mustChangePassword: boolean;
   createdAt?: string;
   lastLoginAt?: string | null;
+  email?: string | null;
+  locale?: "zh-CN" | "en-US";
+  timezone?: string;
 }
 
 export interface NodeMetric {

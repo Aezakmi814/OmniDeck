@@ -5,11 +5,13 @@ ARG NPM_REGISTRY=https://registry.npmjs.org/
 COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
+COPY packages/sdk/package.json packages/sdk/package.json
 RUN npm config set registry "${NPM_REGISTRY}" \
     && npm ci --fetch-retries=5 --fetch-retry-maxtimeout=120000
 
 FROM dependencies AS build
 COPY apps ./apps
+COPY packages ./packages
 RUN npm run build
 
 FROM dependencies AS production-dependencies

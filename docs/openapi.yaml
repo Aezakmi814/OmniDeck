@@ -1,0 +1,67 @@
+openapi: 3.1.0
+info:
+  title: OmniDeck Project Events API
+  version: 0.2.0
+  description: Publish registered project events into the OmniDeck notification core.
+servers:
+  - url: https://sys.example.com
+paths:
+  /api/v1/projects/{projectKey}/events:
+    post:
+      operationId: publishProjectEvent
+      security:
+        - projectToken: []
+      parameters:
+        - name: projectKey
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-z0-9][a-z0-9-]{1,63}$' }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 255 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectEvent'
+      responses:
+        '202':
+          description: Event accepted and deliveries created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventResult' }
+        '200':
+          description: Idempotent replay of an existing event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventResult' }
+        '400': { description: Invalid event, schema, size, lifecycle, or idempotency key. }
+        '401': { description: Missing, invalid, expired, revoked, or wrong-project token. }
+components:
+  securitySchemes:
+    projectToken:
+      type: http
+      scheme: bearer
+      bearerFormat: omni_proj
+  schemas:
+    ProjectEvent:
+      type: object
+      additionalProperties: false
+      required: [eventType]
+      properties:
+        eventType: { type: string, minLength: 1, maxLength: 100 }
+        data: { type: object, default: {}, description: Serialized payload is limited to 16 KiB. }
+        priority: { type: integer, minimum: 1, maximum: 5 }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        body: { type: string, minLength: 1, maxLength: 4096 }
+        dedupeKey: { type: string, minLength: 1, maxLength: 255 }
+        occurredAt: { type: string, format: date-time }
+    EventResult:
+      type: object
+      required: [eventId, duplicate, deliveries]
+      properties:
+        eventId: { type: string, format: uuid }
+        duplicate: { type: boolean }
+        deliveries: { type: integer, minimum: 0 }

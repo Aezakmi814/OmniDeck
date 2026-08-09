@@ -6,6 +6,9 @@ node_modules
 data
 runtime
 coverage
+output
+deploy/secrets
+.playwright-cli
 *.log
 .env
 .env.*

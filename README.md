@@ -2,9 +2,9 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-OmniDeck is a self-hosted control and observability platform for services, infrastructure, data sources, alerts, and automation. The current `0.1.x` implementation monitors infrastructure, public endpoints, FRP links, and OpenAI-compatible upstreams, with lightweight agents on Linux and Windows nodes.
+OmniDeck is a self-hosted control and observability platform for services, infrastructure, data sources, alerts, notifications, and automation. Version `0.2.x` monitors infrastructure, public endpoints, FRP links, and OpenAI-compatible upstreams, with lightweight agents on Linux and Windows nodes.
 
-OmniDeck is being developed toward a modular platform with shared authentication, permissions, navigation, notifications, jobs, and integration contracts. These extension interfaces are not stable yet. Database migrations are automatic, but production deployments should still be backed up before upgrading.
+The platform includes shared authentication, project permissions, navigation, durable notification jobs, and a typed event integration contract. Database migrations are automatic, but production deployments should still be backed up before upgrading.
 
 ## Features
 
@@ -16,7 +16,8 @@ OmniDeck is being developed toward a modular platform with shared authentication
 - Real OpenAI-compatible SSE probes with TTFT and response validation.
 - Optional balance collection using a configurable JSON field path.
 - Distributed probes assigned from the UI to selected agents.
-- Alert and recovery history with SMTP notifications.
+- Unified in-app, SMTP, and private per-user ntfy notifications with subscriptions, quiet hours, priorities, cooldowns, retries, and recovery handling.
+- Module/project registry, registered JSON Schema event types, hashed project tokens, idempotent external API, and `@omnideck/sdk`.
 - Prometheus metrics with per-location labels and 90-day retention.
 - Grafana dashboards behind the same OmniDeck login session.
 - Docker Compose deployment with no database, Prometheus, or Grafana port exposed publicly.
@@ -39,9 +40,16 @@ Linux / Windows agents
 Prometheus
   -> private bearer-authenticated /metrics
   -> Grafana datasource
+
+Projects / modules
+  -> @omnideck/sdk / HTTPS event API
+  -> durable SQLite outbox
+  -> in-app / email / ntfy providers
 ```
 
 The central OmniDeck instance always executes each enabled probe. Agents provide additional geographic and network perspectives. Probe API keys are encrypted at rest on the control plane, sent only to assigned authenticated agents over HTTPS, held in memory, and never written into agent configuration.
+
+Notification architecture, API limits, and ntfy isolation are documented in [docs/notifications.md](docs/notifications.md). The machine-readable external event contract is [docs/openapi.yaml](docs/openapi.yaml).
 
 ## Quick Start
 
@@ -78,10 +86,12 @@ From Windows PowerShell:
 
 ./scripts/deploy-fnos.ps1 `
   -SshHost "fnos" `
-  -RemoteDirectory "/vol1/docker/omnideck"
+  -RemoteDirectory "/vol1/docker/omnideck" `
+  -NtfyBaseUrl "https://notify.example.com" `
+  -NtfyProvisionerUrl "http://host.docker.internal:6601"
 ```
 
-The deployment exposes only `127.0.0.1:3200` on the NAS. Point a local reverse proxy or FRP client at that port. See [docs/deployment.md](docs/deployment.md).
+The ntfy URL parameters are required only when both ignored ntfy secret files exist; otherwise the base deployment is used. Updates create source and stopped-app data backups, retain the previous image, and automatically restore them if the new app fails its health check. The deployment exposes only `127.0.0.1:3200` on the NAS. Point a local reverse proxy or FRP client at that port. See [docs/deployment.md](docs/deployment.md).
 
 ## Agent
 
@@ -138,6 +148,8 @@ The web application runs on `127.0.0.1:5173` and proxies `/api` to the server on
 - Passwords use salted `scrypt` hashes.
 - API keys and SMTP credentials use AES-256-GCM at rest.
 - Session and agent tokens are stored only as SHA-256 hashes.
+- Project API tokens are hashed; ntfy device tokens and provider credentials use AES-256-GCM.
+- Per-user ntfy accounts have random private topics, read-only subscriber ACLs, and independent one-year device tokens.
 - Self-registration is disabled.
 - Application logs redact authorization headers, cookies, passwords, and API keys.
 - Grafana and Prometheus are reachable only on the internal Docker network.

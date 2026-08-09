@@ -1,0 +1,18 @@
+services:
+  app:
+    environment:
+      NTFY_BASE_URL: ${NTFY_BASE_URL:?Set NTFY_BASE_URL when enabling ntfy}
+      NTFY_PUBLISHER_TOKEN_FILE: /run/secrets/ntfy_publisher_token
+      NTFY_PROVISIONER_URL: ${NTFY_PROVISIONER_URL:?Set NTFY_PROVISIONER_URL when enabling ntfy}
+      NTFY_PROVISIONER_KEY_FILE: /run/secrets/ntfy_provisioner_key
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    secrets:
+      - ntfy_publisher_token
+      - ntfy_provisioner_key
+
+secrets:
+  ntfy_publisher_token:
+    file: ./deploy/secrets/ntfy_omnideck_publisher_token.txt
+  ntfy_provisioner_key:
+    file: ./deploy/secrets/ntfy_omnideck_provisioner_key.txt

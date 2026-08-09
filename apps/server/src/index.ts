@@ -8,20 +8,23 @@ import Fastify from "fastify";
 import { config } from "./config.js";
 import { cleanupExpiredData } from "./db.js";
 import { metricsRoutes } from "./metrics.js";
+import { initializeNotificationCenter, notificationWorkerTick } from "./notification-service.js";
+import { provisionWorkerTick } from "./notification-provisioning.js";
 import { schedulerTick } from "./probes.js";
 import { authRoutes } from "./routes/auth.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { monitorRoutes } from "./routes/monitors.js";
 import { nodeRoutes } from "./routes/nodes.js";
+import { notificationRoutes } from "./routes/notifications.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { userRoutes } from "./routes/users.js";
 
 const app = Fastify({
   logger: {
     level: config.isProduction ? "info" : "debug",
-    redact: ["req.headers.authorization", "req.headers.cookie", "body.password", "body.apiKey"],
+    redact: ["req.headers.authorization", "req.headers.cookie", "body.password", "body.apiKey", "body.publisherToken", "body.token"],
   },
-  trustProxy: true,
+    trustProxy: ["127.0.0.1", "172.16.0.0/12"],
   bodyLimit: 1024 * 1024,
 });
 
@@ -41,14 +44,16 @@ await app.register(helmet, {
 await app.register(rateLimit, { max: 240, timeWindow: "1 minute" });
 
 await authRoutes(app);
+initializeNotificationCenter();
 await userRoutes(app);
 await nodeRoutes(app);
 await monitorRoutes(app);
 await dashboardRoutes(app);
 await settingsRoutes(app);
+await notificationRoutes(app);
 await metricsRoutes(app);
 
-app.get("/api/health", async () => ({ status: "ok", version: "0.1.0", time: new Date().toISOString() }));
+app.get("/api/health", async () => ({ status: "ok", version: "0.2.0", time: new Date().toISOString() }));
 
 const agentDownloads: Record<string, { file: string; type: string }> = {
   "omnideck-agent-windows-amd64.exe": {
@@ -86,8 +91,12 @@ app.setNotFoundHandler(async (request, reply) => {
 });
 
 setInterval(() => void schedulerTick().catch((error) => app.log.error(error)), 10_000).unref();
+setInterval(() => void notificationWorkerTick().catch((error) => app.log.error(error)), 5_000).unref();
+setInterval(() => void provisionWorkerTick().catch((error) => app.log.error(error)), 30_000).unref();
 setInterval(cleanupExpiredData, 6 * 60 * 60 * 1000).unref();
 void schedulerTick().catch((error) => app.log.error(error));
+void notificationWorkerTick().catch((error) => app.log.error(error));
+void provisionWorkerTick().catch((error) => app.log.error(error));
 
 const shutdown = async () => {
   await app.close();

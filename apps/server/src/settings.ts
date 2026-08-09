@@ -51,15 +51,25 @@ export function getSmtpSettings(): SmtpSettings | null {
 export async function sendMail(subject: string, text: string): Promise<void> {
   const smtp = getSmtpSettings();
   if (!smtp || !smtp.host || !smtp.from || smtp.recipients.length === 0) return;
+  await sendMailTo(subject, text, smtp.recipients);
+}
+
+export async function sendMailTo(subject: string, text: string, recipients: string[]): Promise<void> {
+  const smtp = getSmtpSettings();
+  if (!smtp || !smtp.host || !smtp.from) throw new Error("SMTP provider is not configured");
+  if (recipients.length === 0) throw new Error("At least one recipient is required");
   const transporter = nodemailer.createTransport({
     host: smtp.host,
     port: smtp.port,
     secure: smtp.secure,
     auth: smtp.username ? { user: smtp.username, pass: smtp.password } : undefined,
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 30_000,
   });
   await transporter.sendMail({
     from: smtp.from,
-    to: smtp.recipients.join(", "),
+    to: recipients.join(", "),
     subject,
     text,
   });

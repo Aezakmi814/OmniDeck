@@ -133,7 +133,8 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'open',
     opened_at TEXT NOT NULL,
     resolved_at TEXT,
-    notified_at TEXT
+    notified_at TEXT,
+    recovery_notified_at TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_alerts_status_opened ON alerts(status, opened_at DESC);
 
@@ -164,6 +165,172 @@ db.exec(`
     PRIMARY KEY (monitor_type, monitor_id, node_id)
   );
   CREATE INDEX IF NOT EXISTS idx_monitor_assignments_node ON monitor_assignments(node_id, monitor_type);
+
+  CREATE TABLE IF NOT EXISTS notification_projects (
+    id TEXT PRIMARY KEY,
+    module_key TEXT NOT NULL,
+    project_key TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS notification_event_types (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES notification_projects(id) ON DELETE CASCADE,
+    event_key TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    schema_json TEXT NOT NULL DEFAULT '{}',
+    title_template TEXT NOT NULL,
+    body_template TEXT NOT NULL,
+    default_priority INTEGER NOT NULL DEFAULT 3 CHECK (default_priority BETWEEN 1 AND 5),
+    lifecycle TEXT NOT NULL DEFAULT 'event' CHECK (lifecycle IN ('event', 'opened', 'recovered')),
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(project_id, event_key)
+  );
+
+  CREATE TABLE IF NOT EXISTS notification_project_members (
+    project_id TEXT NOT NULL REFERENCES notification_projects(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    permission TEXT NOT NULL DEFAULT 'read' CHECK (permission IN ('read', 'manage')),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (project_id, user_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_notification_project_members_user ON notification_project_members(user_id, project_id);
+
+  CREATE TABLE IF NOT EXISTS notification_project_tokens (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES notification_projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    token_hint TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT,
+    last_used_at TEXT,
+    revoked_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_notification_tokens_project ON notification_project_tokens(project_id, revoked_at);
+
+  CREATE TABLE IF NOT EXISTS notification_subscriptions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id TEXT REFERENCES notification_projects(id) ON DELETE CASCADE,
+    event_type_id TEXT REFERENCES notification_event_types(id) ON DELETE CASCADE,
+    min_priority INTEGER NOT NULL DEFAULT 1 CHECK (min_priority BETWEEN 1 AND 5),
+    delivery_priority INTEGER CHECK (delivery_priority BETWEEN 1 AND 5),
+    channels_json TEXT NOT NULL DEFAULT '["in_app"]',
+    email_addresses_json TEXT NOT NULL DEFAULT '[]',
+    cooldown_mode TEXT NOT NULL DEFAULT 'once' CHECK (cooldown_mode IN ('once', 'interval', 'repeat_count', 'until_recovery')),
+    cooldown_seconds INTEGER NOT NULL DEFAULT 1800 CHECK (cooldown_seconds BETWEEN 60 AND 2592000),
+    repeat_count INTEGER NOT NULL DEFAULT 1 CHECK (repeat_count BETWEEN 1 AND 100),
+    quiet_start TEXT,
+    quiet_end TEXT,
+    recovery_summary_mode TEXT NOT NULL DEFAULT 'merged' CHECK (recovery_summary_mode IN ('merged', 'recovery_only', 'all')),
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_notification_subscriptions_match ON notification_subscriptions(project_id, event_type_id, enabled);
+  CREATE INDEX IF NOT EXISTS idx_notification_subscriptions_user ON notification_subscriptions(user_id, enabled);
+
+  CREATE TABLE IF NOT EXISTS notification_events (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES notification_projects(id) ON DELETE CASCADE,
+    event_type_id TEXT NOT NULL REFERENCES notification_event_types(id) ON DELETE CASCADE,
+    idempotency_key TEXT,
+    idempotency_fingerprint TEXT,
+    priority INTEGER NOT NULL CHECK (priority BETWEEN 1 AND 5),
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    data_json TEXT NOT NULL DEFAULT '{}',
+    dedupe_key TEXT,
+    lifecycle TEXT NOT NULL CHECK (lifecycle IN ('event', 'opened', 'recovered')),
+    occurred_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key)
+  );
+  CREATE INDEX IF NOT EXISTS idx_notification_events_created ON notification_events(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_notification_events_dedupe ON notification_events(project_id, event_type_id, dedupe_key, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS notification_incidents (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES notification_projects(id) ON DELETE CASCADE,
+    dedupe_key TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('open', 'resolved')),
+    opened_event_id TEXT NOT NULL REFERENCES notification_events(id) ON DELETE CASCADE,
+    resolved_event_id TEXT REFERENCES notification_events(id) ON DELETE SET NULL,
+    opened_at TEXT NOT NULL,
+    last_opened_at TEXT NOT NULL,
+    resolved_at TEXT,
+    UNIQUE(project_id, dedupe_key)
+  );
+
+  CREATE TABLE IF NOT EXISTS notification_deliveries (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL REFERENCES notification_events(id) ON DELETE CASCADE,
+    subscription_id TEXT NOT NULL REFERENCES notification_subscriptions(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    channel TEXT NOT NULL CHECK (channel IN ('in_app', 'email', 'ntfy')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'delivered', 'failed', 'suppressed', 'superseded')),
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    repeat_index INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT NOT NULL,
+    lease_until TEXT,
+    delivered_at TEXT,
+    read_at TEXT,
+    last_error TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(event_id, subscription_id, channel, repeat_index)
+  );
+  CREATE INDEX IF NOT EXISTS idx_notification_delivery_queue ON notification_deliveries(status, next_attempt_at, lease_until);
+  CREATE INDEX IF NOT EXISTS idx_notification_delivery_inbox ON notification_deliveries(user_id, channel, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS ntfy_accounts (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    username TEXT NOT NULL UNIQUE,
+    topic TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'disabled', 'error')),
+    provisioned_at TEXT,
+    last_error TEXT,
+    generation INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS ntfy_device_tokens (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    token_encrypted TEXT NOT NULL,
+    token_hint TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    revoked_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_ntfy_tokens_user ON ntfy_device_tokens(user_id, revoked_at);
+
+  CREATE TABLE IF NOT EXISTS ntfy_provision_jobs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    operation TEXT NOT NULL,
+    request_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT NOT NULL,
+    lease_until TEXT,
+    account_username TEXT,
+    account_generation INTEGER,
+    last_error TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_ntfy_jobs_queue ON ntfy_provision_jobs(status, next_attempt_at, lease_until);
 `);
 
 function ensureColumn(table: string, column: string, definition: string): void {
@@ -175,6 +342,26 @@ function ensureColumn(table: string, column: string, definition: string): void {
 
 ensureColumn("endpoint_checks", "node_id", "TEXT REFERENCES nodes(id) ON DELETE SET NULL");
 ensureColumn("ai_checks", "node_id", "TEXT REFERENCES nodes(id) ON DELETE SET NULL");
+ensureColumn("users", "email", "TEXT");
+ensureColumn("users", "locale", "TEXT NOT NULL DEFAULT 'zh-CN'");
+ensureColumn("users", "timezone", "TEXT NOT NULL DEFAULT 'Asia/Shanghai'");
+ensureColumn("users", "deleted_at", "TEXT");
+ensureColumn("alerts", "recovery_notified_at", "TEXT");
+ensureColumn("notification_events", "idempotency_fingerprint", "TEXT");
+ensureColumn("notification_incidents", "last_opened_at", "TEXT");
+db.prepare("UPDATE notification_incidents SET last_opened_at=opened_at WHERE last_opened_at IS NULL").run();
+ensureColumn("ntfy_accounts", "generation", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("ntfy_provision_jobs", "account_username", "TEXT");
+ensureColumn("ntfy_provision_jobs", "account_generation", "INTEGER");
+const recoveryMigration = db.prepare("SELECT value FROM settings WHERE key='notification.alert_recovery_migrated'").get() as { value: string } | undefined;
+if (!recoveryMigration) {
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE alerts SET recovery_notified_at=COALESCE(notified_at, resolved_at)
+    WHERE status='resolved' AND recovery_notified_at IS NULL
+  `).run();
+  db.prepare("INSERT INTO settings (key, value, encrypted, updated_at) VALUES ('notification.alert_recovery_migrated', '1', 0, ?)").run(now);
+}
 db.exec("CREATE INDEX IF NOT EXISTS idx_endpoint_checks_location ON endpoint_checks(endpoint_id, node_id, checked_at DESC)");
 db.exec("CREATE INDEX IF NOT EXISTS idx_ai_checks_location ON ai_checks(target_id, node_id, checked_at DESC)");
 
@@ -225,8 +412,22 @@ export function audit(
 export function cleanupExpiredData(): void {
   const sessionCutoff = nowIso();
   const metricCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  const credentialCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(sessionCutoff);
   db.prepare("DELETE FROM node_samples WHERE sampled_at < ?").run(metricCutoff);
   db.prepare("DELETE FROM endpoint_checks WHERE checked_at < ?").run(metricCutoff);
   db.prepare("DELETE FROM ai_checks WHERE checked_at < ?").run(metricCutoff);
+  db.prepare("DELETE FROM notification_deliveries WHERE created_at < ?").run(metricCutoff);
+  db.prepare(`
+    UPDATE ntfy_provision_jobs SET result_encrypted=NULL, request_json=''
+    WHERE status='completed' AND result_encrypted IS NOT NULL AND updated_at < ?
+  `).run(credentialCutoff);
+  db.prepare(`
+    DELETE FROM notification_events WHERE created_at < ? AND id NOT IN (
+      SELECT opened_event_id FROM notification_incidents WHERE status='open'
+    )
+  `).run(metricCutoff);
+  db.prepare("DELETE FROM ntfy_provision_jobs WHERE created_at < ? AND status IN ('completed', 'failed')").run(metricCutoff);
 }
+
+ensureColumn("ntfy_provision_jobs", "result_encrypted", "TEXT");
