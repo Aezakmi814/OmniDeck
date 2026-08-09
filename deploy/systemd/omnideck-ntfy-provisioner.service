@@ -1,0 +1,30 @@
+[Unit]
+Description=OmniDeck ntfy Provisioner
+After=network-online.target ntfy.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=omnideck-provisioner
+Group=omnideck-provisioner
+Environment=LISTEN_ADDR=127.0.0.1:2671
+Environment=NTFY_BIN=/usr/local/bin/ntfy
+Environment=NTFY_CONFIG=/opt/ntfy/server.yml
+Environment=NTFY_AUTH_FILE=/opt/ntfy/data/auth.db
+Environment=OMNIDECK_PROVISIONER_KEY_FILE=/etc/omnideck-ntfy-provisioner/key
+ExecStart=/usr/local/bin/omnideck-ntfy-provisioner
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/opt/ntfy/server.yml
+ReadWritePaths=/opt/ntfy/data
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

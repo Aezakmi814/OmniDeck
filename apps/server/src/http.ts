@@ -27,7 +27,7 @@ export function sessionUser(request: FastifyRequest): SessionUser | null {
     SELECT u.*
     FROM sessions s
     JOIN users u ON u.id = s.user_id
-    WHERE s.token_hash = ? AND s.expires_at > ? AND u.disabled = 0
+    WHERE s.token_hash = ? AND s.expires_at > ? AND u.disabled = 0 AND u.deleted_at IS NULL
   `), hashToken(token), new Date().toISOString());
 
   if (!row) return null;
@@ -37,6 +37,9 @@ export function sessionUser(request: FastifyRequest): SessionUser | null {
     displayName: row.display_name,
     role: row.role,
     mustChangePassword: Boolean(row.must_change_password),
+    email: row.email,
+    locale: row.locale,
+    timezone: row.timezone,
   };
 }
 

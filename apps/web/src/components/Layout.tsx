@@ -7,18 +7,23 @@ import {
   Globe2,
   LogOut,
   Menu,
+  Inbox,
+  TriangleAlert,
   Server,
   Settings,
   Users,
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { useEffect } from "react";
+import { api } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { AppLink, navigate, usePath } from "../lib/router";
 
 const navigation = [
   { href: "/", label: "系统总览", icon: Gauge },
-  { href: "/alerts", label: "告警事件", icon: Bell },
+  { href: "/alerts", label: "告警事件", icon: TriangleAlert },
+  { href: "/notifications", label: "通知中心", icon: Inbox },
   { href: "/nodes", label: "基础设施", icon: Server },
   { href: "/endpoints", label: "公网入口", icon: Globe2 },
   { href: "/ai-targets", label: "AI 上游", icon: Bot },
@@ -32,6 +37,7 @@ const adminNavigation = [
 const pageTitles: Record<string, string> = {
   "/": "系统总览",
   "/alerts": "告警事件",
+  "/notifications": "通知中心",
   "/nodes": "基础设施",
   "/endpoints": "公网入口",
   "/ai-targets": "AI 上游",
@@ -44,7 +50,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
   const items = user?.role === "admin" ? [...navigation, ...adminNavigation] : navigation;
+  useEffect(() => {
+    let active = true;
+    const load = () => void api<{ unreadCount: number }>("/api/notifications/inbox?limit=1&unread=true")
+      .then((result) => { if (active) setUnread(result.unreadCount); })
+      .catch(() => undefined);
+    load();
+    const timer = window.setInterval(load, 30_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [path]);
 
   async function signOut() {
     await logout();
@@ -90,6 +106,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="account-wrap">
+            <AppLink className="notification-button" href="/notifications" title="通知中心">
+              <Bell size={18} />{unread > 0 && <span>{unread > 99 ? "99+" : unread}</span>}
+            </AppLink>
             <button className="account-button" onClick={() => setAccountOpen((value) => !value)}>
               <span className="avatar">{user?.displayName.slice(0, 1).toUpperCase()}</span>
               <span className="account-copy"><strong>{user?.displayName}</strong><small>{user?.role === "admin" ? "管理员" : "查看者"}</small></span>

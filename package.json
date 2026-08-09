@@ -1,20 +1,21 @@
 {
   "name": "omnideck",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Self-hosted control and observability platform for services, infrastructure, data sources, alerts, and automation",
   "license": "Apache-2.0",
   "workspaces": [
     "apps/server",
-    "apps/web"
+    "apps/web",
+    "packages/sdk"
   ],
   "scripts": {
     "dev": "concurrently -n server,web -c green,cyan \"npm run dev -w @omnideck/server\" \"npm run dev -w @omnideck/web\"",
-    "build": "npm run build -w @omnideck/web && npm run build -w @omnideck/server",
+    "build": "npm run build -w @omnideck/sdk && npm run build -w @omnideck/web && npm run build -w @omnideck/server",
     "start": "npm run start -w @omnideck/server",
-    "test": "npm run test -w @omnideck/server && npm run test -w @omnideck/web",
-    "typecheck": "npm run typecheck -w @omnideck/server && npm run typecheck -w @omnideck/web"
+    "test": "npm run test -w @omnideck/server && npm run test -w @omnideck/web && npm run test -w @omnideck/sdk",
+    "typecheck": "npm run typecheck -w @omnideck/server && npm run typecheck -w @omnideck/web && npm run typecheck -w @omnideck/sdk"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

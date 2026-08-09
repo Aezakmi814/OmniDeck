@@ -17,6 +17,7 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       AGENT_BIN_DIR: /app/agent-bin
+      NODE_OPTIONS: --dns-result-order=ipv4first
     volumes:
       - app-data:/app/data
     networks: [monitoring]

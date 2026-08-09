@@ -18,6 +18,12 @@ const schema = z.object({
   ADMIN_INITIAL_USERNAME: z.string().min(1).max(64).default("root"),
   ADMIN_INITIAL_PASSWORD: z.string().min(10).optional(),
   METRICS_TOKEN: z.string().min(24).optional(),
+  NTFY_BASE_URL: z.string().url().optional(),
+  NTFY_PUBLISHER_TOKEN: z.string().min(16).optional(),
+  NTFY_PUBLISHER_TOKEN_FILE: z.string().optional(),
+  NTFY_PROVISIONER_URL: z.string().url().optional(),
+  NTFY_PROVISIONER_KEY: z.string().min(32).optional(),
+  NTFY_PROVISIONER_KEY_FILE: z.string().optional(),
 });
 
 const parsed = schema.parse(process.env);

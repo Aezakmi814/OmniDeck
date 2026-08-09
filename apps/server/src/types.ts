@@ -6,6 +6,9 @@ export interface SessionUser {
   displayName: string;
   role: UserRole;
   mustChangePassword: boolean;
+  email: string | null;
+  locale: string;
+  timezone: string;
 }
 
 export interface UserRow {
@@ -19,6 +22,10 @@ export interface UserRow {
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
+  email: string | null;
+  locale: string;
+  timezone: string;
+  deleted_at: string | null;
 }
 
 export interface NodeRow {

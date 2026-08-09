@@ -2,9 +2,9 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-OmniDeck 是一个面向服务、基础设施、数据源、告警和自动化任务的自托管控制与可观测平台。当前 `0.1.x` 版本用于监控基础设施、公网接口、FRP 链路和 OpenAI 兼容上游，并通过轻量级 Agent 管理 Linux 与 Windows 节点。
+OmniDeck 是一个面向服务、基础设施、数据源、告警、通知和自动化任务的自托管控制与可观测平台。`0.2.x` 版本用于监控基础设施、公网接口、FRP 链路和 OpenAI 兼容上游，并通过轻量级 Agent 管理 Linux 与 Windows 节点。
 
-OmniDeck 正在向模块化平台演进，未来将提供统一认证、权限、导航、通知、后台任务和接入协议。当前扩展接口尚未稳定。数据库迁移会自动执行，但生产环境升级前仍应备份数据。
+平台提供统一认证、项目权限、导航、持久通知任务和带类型的事件接入协议。数据库迁移会自动执行，但生产环境升级前仍应备份数据。
 
 ## 功能
 
@@ -16,7 +16,8 @@ OmniDeck 正在向模块化平台演进，未来将提供统一认证、权限�
 - 通过真实 OpenAI 兼容 SSE 请求探测 TTFT 并验证响应内容。
 - 使用可配置的 JSON 字段路径采集可选的余额信息。
 - 从界面向指定 Agent 分配分布式探测任务。
-- 记录告警与恢复历史，并通过 SMTP 发送通知。
+- 统一站内、SMTP 和每用户私有 ntfy 通知，支持订阅、免打扰、优先级、冷却、重试和恢复处理。
+- 模块/项目注册表、JSON Schema 事件类型、哈希项目令牌、幂等外部 API 与 `@omnideck/sdk`。
 - Prometheus 指标支持位置标签和 90 天保留策略。
 - Grafana 仪表盘复用 OmniDeck 登录会话。
 - 使用 Docker Compose 部署，数据库、Prometheus 和 Grafana 端口均不直接公开。
@@ -39,9 +40,16 @@ Linux / Windows Agent
 Prometheus
   -> 使用独立 Bearer Token 访问私有 /metrics
   -> Grafana 数据源
+
+项目 / 模块
+  -> @omnideck/sdk / HTTPS 事件 API
+  -> SQLite 持久发件箱
+  -> 站内 / 邮件 / ntfy Provider
 ```
 
 OmniDeck 中心实例始终会执行每个已启用的探测任务，Agent 则提供额外的地理位置和网络视角。探测使用的 API 密钥会在控制端加密保存，仅通过 HTTPS 发送给已分配且通过认证的 Agent，只保留在内存中，不会写入 Agent 配置文件。
+
+通知架构、API 限制和 ntfy 隔离方案见 [docs/notifications.md](docs/notifications.md)，机器可读的外部事件协议见 [docs/openapi.yaml](docs/openapi.yaml)。
 
 ## 快速开始
 
@@ -78,10 +86,12 @@ docker compose up -d --build
 
 ./scripts/deploy-fnos.ps1 `
   -SshHost "fnos" `
-  -RemoteDirectory "/vol1/docker/omnideck"
+  -RemoteDirectory "/vol1/docker/omnideck" `
+  -NtfyBaseUrl "https://notify.example.com" `
+  -NtfyProvisionerUrl "http://host.docker.internal:6601"
 ```
 
-部署只在 NAS 上公开 `127.0.0.1:3200`。请将本地反向代理或 FRP 客户端指向该端口。详细说明参见 [docs/deployment.md](docs/deployment.md)。
+只有同时存在两个被忽略的 ntfy 密钥文件时才需要 ntfy URL 参数，否则使用基础部署模式。更新会备份源码和停写后的数据卷、保留旧镜像，并在新 App 健康检查失败时自动恢复。部署只在 NAS 上公开 `127.0.0.1:3200`。请将本地反向代理或 FRP 客户端指向该端口。详细说明参见 [docs/deployment.md](docs/deployment.md)。
 
 ## Agent
 
@@ -138,6 +148,8 @@ Web 应用运行在 `127.0.0.1:5173`，并将 `/api` 请求代理到 `127.0.0.1:
 - 密码使用带盐的 `scrypt` 哈希。
 - API 密钥和 SMTP 凭据使用 AES-256-GCM 加密保存。
 - 会话令牌和 Agent 令牌仅保存为 SHA-256 哈希。
+- 项目 API 令牌仅保存哈希；ntfy 设备令牌与 Provider 凭据使用 AES-256-GCM 加密。
+- 每位用户使用随机私有 ntfy 主题、只读订阅 ACL 和独立的一年期设备令牌。
 - 禁止用户自行注册。
 - 应用日志会隐藏授权头、Cookie、密码和 API 密钥。
 - Grafana 和 Prometheus 只能从 Docker 内部网络访问。

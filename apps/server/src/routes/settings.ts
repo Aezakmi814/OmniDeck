@@ -3,6 +3,7 @@ import { z } from "zod";
 import { audit } from "../db.js";
 import { parseBody, requireAdmin } from "../http.js";
 import { getSmtpSettings, sendMail, setSetting } from "../settings.js";
+import { syncSmtpRecipientSubscription } from "../notification-service.js";
 
 const smtpSchema = z.object({
   host: z.string().trim().min(1).max(255),
@@ -11,7 +12,7 @@ const smtpSchema = z.object({
   username: z.string().max(255).default(""),
   password: z.string().max(1024).optional(),
   from: z.string().trim().min(3).max(320),
-  recipients: z.array(z.string().email()).min(1).max(20),
+  recipients: z.array(z.string().email()).max(20),
 });
 
 export async function settingsRoutes(app: FastifyInstance): Promise<void> {
@@ -41,6 +42,7 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
       ...body,
       password: body.password || current?.password || "",
     }), true);
+    syncSmtpRecipientSubscription();
     audit(actor.id, "settings.smtp_updated", "settings", "smtp", { host: body.host, recipients: body.recipients }, request.ip);
     return { ok: true };
   });

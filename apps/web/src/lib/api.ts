@@ -1,11 +1,13 @@
 export class ApiError extends Error {
   status: number;
   fields?: Record<string, string[]>;
+  data?: Record<string, unknown>;
 
-  constructor(status: number, message: string, fields?: Record<string, string[]>) {
+  constructor(status: number, message: string, fields?: Record<string, string[]>, data?: Record<string, unknown>) {
     super(message);
     this.status = status;
     this.fields = fields;
+    this.data = data;
   }
 }
 
@@ -27,6 +29,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       response.status,
       typeof payload?.message === "string" ? payload.message : `请求失败（HTTP ${response.status}）`,
       payload?.fields as Record<string, string[]> | undefined,
+      payload ?? undefined,
     );
   }
   return payload as T;

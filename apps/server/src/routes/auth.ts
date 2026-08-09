@@ -25,7 +25,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (!body) return;
 
     const user = one<UserRow>(
-      db.prepare("SELECT * FROM users WHERE username = ? COLLATE NOCASE"),
+      db.prepare("SELECT * FROM users WHERE username = ? COLLATE NOCASE AND deleted_at IS NULL"),
       body.username,
     );
 
@@ -59,6 +59,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         displayName: user.display_name,
         role: user.role,
         mustChangePassword: Boolean(user.must_change_password),
+        email: user.email,
+        locale: user.locale,
+        timezone: user.timezone,
       },
     };
   });

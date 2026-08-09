@@ -1,0 +1,49 @@
+name: omnideck-staging
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org/}
+        GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
+    image: omnideck/app:0.2.0-staging
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APP_URL: http://127.0.0.1:3210
+      DATA_DIR: /app/data
+      WEB_ROOT: /app/dist/web
+      HOST: 0.0.0.0
+      PORT: 3000
+      AGENT_BIN_DIR: /app/agent-bin
+      NODE_OPTIONS: --dns-result-order=ipv4first
+      NTFY_BASE_URL: ${NTFY_BASE_URL:?Set NTFY_BASE_URL for notification staging}
+      NTFY_PUBLISHER_TOKEN_FILE: /run/secrets/ntfy_publisher_token
+      NTFY_PROVISIONER_URL: ${NTFY_PROVISIONER_URL:?Set NTFY_PROVISIONER_URL for notification staging}
+      NTFY_PROVISIONER_KEY_FILE: /run/secrets/ntfy_provisioner_key
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    secrets:
+      - ntfy_publisher_token
+      - ntfy_provisioner_key
+    volumes:
+      - app-data:/app/data
+    ports:
+      - 127.0.0.1:3210:3000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+
+volumes:
+  app-data:
+
+secrets:
+  ntfy_publisher_token:
+    file: ./deploy/secrets/ntfy_omnideck_publisher_token.txt
+  ntfy_provisioner_key:
+    file: ./deploy/secrets/ntfy_omnideck_provisioner_key.txt
