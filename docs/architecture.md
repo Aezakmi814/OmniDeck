@@ -26,6 +26,12 @@ Modules publish registered project events to `NotificationService`; they never c
 
 `InAppProvider`, `EmailProvider`, and `NtfyProvider` fan out independently. The webhook provider name is reserved for a future contract. External integrations use hashed project Bearer tokens and `Idempotency-Key` through the OpenAPI contract or `@omnideck/sdk`.
 
+### Market intelligence
+
+Fixed source adapters fetch documented or explicitly authorized feeds and normalize external products and offers into canonical products, source mappings, current offers, and immutable observations. The first adapter uses PriceAI's public snapshot pointer and never accesses its internal `/api/` routes. Poll work is claimed with a SQLite lease, unchanged immutable snapshots are skipped, and detailed observations are retained for 90 days.
+
+Procurement rules belong to individual users. A fresh available offer crossing below a target price emits a targeted `market-intelligence/price.target_met` event through the notification core. Adapter logic, product identity, watch evaluation, and transport delivery remain separate so additional market sources do not change notification providers.
+
 ### ntfy provisioner
 
 The provisioner is a separate Go service next to ntfy. HMAC-authenticated requests arrive through FRP STCP. It executes only validated official `ntfy user`, `ntfy access`, and `ntfy token` commands; it has no Docker socket, SSH key, or direct SQLite implementation. Each OmniDeck user receives a random account/topic and each device receives an independently revocable one-year token.

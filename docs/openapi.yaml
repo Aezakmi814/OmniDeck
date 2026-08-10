@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OmniDeck Project Events API
-  version: 0.2.0
+  version: 0.3.0
   description: Publish registered project events into the OmniDeck notification core.
 servers:
   - url: https://sys.example.com

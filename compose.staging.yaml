@@ -8,7 +8,7 @@ services:
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org/}
         GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
-    image: omnideck/app:0.2.0-staging
+    image: omnideck/app:0.3.0-staging
     restart: unless-stopped
     env_file: .env
     environment:

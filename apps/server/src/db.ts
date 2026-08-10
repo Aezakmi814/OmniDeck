@@ -138,6 +138,132 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_alerts_status_opened ON alerts(status, opened_at DESC);
 
+  CREATE TABLE IF NOT EXISTS market_sources (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    adapter_key TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    poll_interval_seconds INTEGER NOT NULL DEFAULT 300,
+    next_poll_at TEXT NOT NULL,
+    last_attempt_at TEXT,
+    last_success_at TEXT,
+    last_snapshot_id TEXT,
+    last_published_at TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'healthy', 'stale', 'error')),
+    stale INTEGER NOT NULL DEFAULT 0,
+    partial INTEGER NOT NULL DEFAULT 1,
+    last_error TEXT,
+    lease_until TEXT,
+    lease_token TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_market_sources_queue ON market_sources(enabled, next_poll_at, lease_until);
+
+  CREATE TABLE IF NOT EXISTS market_products (
+    id TEXT PRIMARY KEY,
+    canonical_key TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    name TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    product_type TEXT NOT NULL,
+    spec TEXT,
+    summary TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS market_source_products (
+    source_id TEXT NOT NULL REFERENCES market_sources(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES market_products(id) ON DELETE CASCADE,
+    external_id TEXT NOT NULL,
+    external_slug TEXT NOT NULL,
+    offer_count INTEGER NOT NULL DEFAULT 0,
+    in_stock_count INTEGER NOT NULL DEFAULT 0,
+    lowest_price_minor INTEGER,
+    currency TEXT NOT NULL DEFAULT 'CNY',
+    latest_seen_at TEXT,
+    snapshot_generated_at TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (source_id, external_id),
+    UNIQUE (source_id, product_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_market_source_products_product ON market_source_products(product_id, source_id);
+
+  CREATE TABLE IF NOT EXISTS market_offers (
+    source_id TEXT NOT NULL REFERENCES market_sources(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES market_products(id) ON DELETE CASCADE,
+    external_offer_id TEXT NOT NULL,
+    source_id_external TEXT,
+    source_name TEXT NOT NULL,
+    source_store_name TEXT,
+    title TEXT NOT NULL,
+    price_minor INTEGER NOT NULL,
+    currency TEXT NOT NULL,
+    status TEXT NOT NULL,
+    stock_count INTEGER,
+    min_order_quantity INTEGER,
+    url TEXT NOT NULL,
+    captured_at TEXT,
+    last_seen_at TEXT,
+    verified_at TEXT,
+    expires_at TEXT,
+    effective_status TEXT,
+    freshness_status TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (source_id, product_id, external_offer_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_market_offers_current ON market_offers(product_id, active, price_minor);
+  CREATE INDEX IF NOT EXISTS idx_market_offers_source_store ON market_offers(source_id, source_id_external, active);
+
+  CREATE TABLE IF NOT EXISTS market_observations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id TEXT NOT NULL REFERENCES market_sources(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES market_products(id) ON DELETE CASCADE,
+    snapshot_id TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    published_at TEXT,
+    lowest_price_minor INTEGER,
+    visible_median_price_minor INTEGER,
+    in_stock_count INTEGER NOT NULL DEFAULT 0,
+    offer_count INTEGER NOT NULL DEFAULT 0,
+    stale INTEGER NOT NULL DEFAULT 0,
+    partial INTEGER NOT NULL DEFAULT 1,
+    UNIQUE (source_id, product_id, snapshot_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_market_observations_product_time ON market_observations(product_id, observed_at);
+
+  CREATE TABLE IF NOT EXISTS market_watch_rules (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES market_products(id) ON DELETE CASCADE,
+    target_price_minor INTEGER NOT NULL CHECK (target_price_minor > 0),
+    currency TEXT NOT NULL DEFAULT 'CNY',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    state TEXT NOT NULL DEFAULT 'waiting' CHECK (state IN ('waiting', 'met', 'unknown')),
+    notification_attempt INTEGER NOT NULL DEFAULT 0,
+    last_triggered_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (user_id, product_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_market_watch_rules_user ON market_watch_rules(user_id, enabled, state);
+
+  CREATE TABLE IF NOT EXISTS market_poll_runs (
+    id TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL REFERENCES market_sources(id) ON DELETE CASCADE,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed', 'skipped')),
+    snapshot_id TEXT,
+    http_status INTEGER,
+    product_count INTEGER NOT NULL DEFAULT 0,
+    offer_count INTEGER NOT NULL DEFAULT 0,
+    error TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_market_poll_runs_source_time ON market_poll_runs(source_id, started_at DESC);
+
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -353,6 +479,9 @@ db.prepare("UPDATE notification_incidents SET last_opened_at=opened_at WHERE las
 ensureColumn("ntfy_accounts", "generation", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("ntfy_provision_jobs", "account_username", "TEXT");
 ensureColumn("ntfy_provision_jobs", "account_generation", "INTEGER");
+ensureColumn("market_sources", "lease_token", "TEXT");
+ensureColumn("market_source_products", "active", "INTEGER NOT NULL DEFAULT 1");
+ensureColumn("market_watch_rules", "notification_attempt", "INTEGER NOT NULL DEFAULT 0");
 const recoveryMigration = db.prepare("SELECT value FROM settings WHERE key='notification.alert_recovery_migrated'").get() as { value: string } | undefined;
 if (!recoveryMigration) {
   const now = new Date().toISOString();
@@ -417,6 +546,8 @@ export function cleanupExpiredData(): void {
   db.prepare("DELETE FROM node_samples WHERE sampled_at < ?").run(metricCutoff);
   db.prepare("DELETE FROM endpoint_checks WHERE checked_at < ?").run(metricCutoff);
   db.prepare("DELETE FROM ai_checks WHERE checked_at < ?").run(metricCutoff);
+  db.prepare("DELETE FROM market_observations WHERE observed_at < ?").run(metricCutoff);
+  db.prepare("DELETE FROM market_poll_runs WHERE started_at < ?").run(metricCutoff);
   db.prepare("DELETE FROM notification_deliveries WHERE created_at < ?").run(metricCutoff);
   db.prepare(`
     UPDATE ntfy_provision_jobs SET result_encrypted=NULL, request_json=''
