@@ -57,7 +57,7 @@ await notificationRoutes(app);
 await marketRoutes(app);
 await metricsRoutes(app);
 
-app.get("/api/health", async () => ({ status: "ok", version: "0.2.0", time: new Date().toISOString() }));
+app.get("/api/health", async () => ({ status: "ok", version: "0.3.0", time: new Date().toISOString() }));
 
 const agentDownloads: Record<string, { file: string; type: string }> = {
   "omnideck-agent-windows-amd64.exe": {

@@ -1,6 +1,6 @@
 # Notification Center
 
-OmniDeck v0.2 routes internal alerts and external project events through one durable notification service. Business modules publish registered events; only providers communicate with in-app storage, SMTP, or ntfy.
+OmniDeck v0.3 routes internal alerts and external project events through one durable notification service. Business modules publish registered events; only providers communicate with in-app storage, SMTP, or ntfy.
 
 ## Delivery model
 

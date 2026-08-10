@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-OmniDeck is a self-hosted control and observability platform for services, infrastructure, data sources, alerts, notifications, and automation. Version `0.2.x` monitors infrastructure, public endpoints, FRP links, and OpenAI-compatible upstreams, with lightweight agents on Linux and Windows nodes.
+OmniDeck is a self-hosted control and observability platform for services, infrastructure, data sources, alerts, notifications, and automation. Version `0.3.x` monitors infrastructure, public endpoints, OpenAI-compatible upstreams, and market procurement targets, with lightweight agents on Linux and Windows nodes.
 
 The platform includes shared authentication, project permissions, navigation, durable notification jobs, and a typed event integration contract. Database migrations are automatic, but production deployments should still be backed up before upgrading.
 

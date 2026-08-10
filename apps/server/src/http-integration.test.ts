@@ -26,7 +26,7 @@ test("authenticated notification API accepts idempotent project events", { timeo
   try {
     await waitForHealth(`${baseUrl}/api/health`);
     const health = await fetch(`${baseUrl}/api/health`).then((response) => response.json()) as { version: string };
-    assert.equal(health.version, "0.2.0");
+    assert.equal(health.version, "0.3.0");
 
     const login = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST",

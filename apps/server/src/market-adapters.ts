@@ -218,7 +218,7 @@ function validateSnapshotUrl(value: string): string {
 async function fetchJson(url: string): Promise<unknown> {
   const response = await fetch(url, {
     method: "GET",
-    headers: { Accept: "application/json", "User-Agent": "OmniDeck-PriceRadar/0.2" },
+    headers: { Accept: "application/json", "User-Agent": "OmniDeck-PriceRadar/0.3" },
     redirect: "error",
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });

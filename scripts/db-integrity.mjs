@@ -18,6 +18,11 @@ const result = {
   openIncidents: tables.has("notification_incidents") ? count("notification_incidents", "WHERE status='open'") : 0,
   queuedDeliveries: tables.has("notification_deliveries") ? count("notification_deliveries", "WHERE status IN ('pending', 'processing')") : 0,
   pendingProvisionJobs: tables.has("ntfy_provision_jobs") ? count("ntfy_provision_jobs", "WHERE status IN ('pending', 'processing')") : 0,
+  marketSources: tables.has("market_sources") ? count("market_sources") : 0,
+  marketProducts: tables.has("market_source_products") ? count("market_source_products", "WHERE active=1") : 0,
+  marketOffers: tables.has("market_offers") ? count("market_offers", "WHERE active=1") : 0,
+  marketObservations: tables.has("market_observations") ? count("market_observations") : 0,
+  marketWatches: tables.has("market_watch_rules") ? count("market_watch_rules", "WHERE enabled=1") : 0,
   integrity: db.prepare("PRAGMA integrity_check").get().integrity_check,
 };
 console.log(JSON.stringify(result));
