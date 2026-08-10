@@ -18,6 +18,7 @@ OmniDeck 是一个面向服务、基础设施、数据源、告警、通知和�
 - 从界面向指定 Agent 分配分布式探测任务。
 - 统一站内、SMTP 和每用户私有 ntfy 通知，支持订阅、免打扰、优先级、冷却、重试和恢复处理。
 - 模块/项目注册表、JSON Schema 事件类型、哈希项目令牌、幂等外部 API 与 `@omnideck/sdk`。
+- 基于 PriceAI 公共 Feed 的采购清单、目标价通知、可见 Top 报价对比和 90 天价格/库存趋势。
 - Prometheus 指标支持位置标签和 90 天保留策略。
 - Grafana 仪表盘复用 OmniDeck 登录会话。
 - 使用 Docker Compose 部署，数据库、Prometheus 和 Grafana 端口均不直接公开。
@@ -44,12 +45,17 @@ Prometheus
 项目 / 模块
   -> @omnideck/sdk / HTTPS 事件 API
   -> SQLite 持久发件箱
-  -> 站内 / 邮件 / ntfy Provider
+   -> 站内 / 邮件 / ntfy Provider
+
+市场数据源适配器
+  -> 标准化商品 / 报价 / 历史观测
+  -> 用户采购规则
+  -> 定向通知事件
 ```
 
 OmniDeck 中心实例始终会执行每个已启用的探测任务，Agent 则提供额外的地理位置和网络视角。探测使用的 API 密钥会在控制端加密保存，仅通过 HTTPS 发送给已分配且通过认证的 Agent，只保留在内存中，不会写入 Agent 配置文件。
 
-通知架构、API 限制和 ntfy 隔离方案见 [docs/notifications.md](docs/notifications.md)，机器可读的外部事件协议见 [docs/openapi.yaml](docs/openapi.yaml)。
+通知架构、API 限制和 ntfy 隔离方案见 [docs/notifications.md](docs/notifications.md)，市场数据边界与扩展接口见 [docs/market-intelligence.md](docs/market-intelligence.md)，机器可读的外部事件协议见 [docs/openapi.yaml](docs/openapi.yaml)。
 
 ## 快速开始
 

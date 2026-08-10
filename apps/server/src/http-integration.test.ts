@@ -38,6 +38,32 @@ test("authenticated notification API accepts idempotent project events", { timeo
     assert.ok(cookie);
     const sessionHeaders = { Cookie: cookie, "Content-Type": "application/json" };
 
+    const marketProductId = "11111111-1111-4111-8111-111111111111";
+    const marketDb = new DatabaseSync(join(dataDir, "omnideck.db"));
+    const marketNow = new Date().toISOString();
+    marketDb.prepare(`
+      INSERT INTO market_products (id, canonical_key, name, platform, product_type, spec, created_at, updated_at)
+      VALUES (?, 'ai-market:test-product', 'Test Product', 'ChatGPT', 'subscription', 'Monthly', ?, ?)
+    `).run(marketProductId, marketNow, marketNow);
+    marketDb.prepare(`
+      INSERT INTO market_source_products (
+        source_id, product_id, external_id, external_slug, offer_count, in_stock_count,
+        lowest_price_minor, currency, latest_seen_at, snapshot_generated_at, updated_at
+      ) VALUES ('builtin:priceai-public-feed', ?, 'test-product', 'test-product', 3, 2, 3600, 'CNY', ?, ?, ?)
+    `).run(marketProductId, marketNow, marketNow, marketNow);
+    marketDb.close();
+    const marketDashboard = await apiJson<{ catalog: Array<{ id: string }>; summary: { catalogProducts: number } }>(`${baseUrl}/api/market/dashboard?days=30`, { headers: sessionHeaders });
+    assert.equal(marketDashboard.catalog[0]?.id, marketProductId);
+    assert.equal(marketDashboard.summary.catalogProducts, 1);
+    const watchResponse = await fetch(`${baseUrl}/api/market/watches`, {
+      method: "POST", headers: sessionHeaders,
+      body: JSON.stringify({ productId: marketProductId, targetPriceMinor: 4000, currency: "CNY" }),
+    });
+    assert.equal(watchResponse.status, 201);
+    const marketHistory = await apiJson<{ product: { id: string }; watch: { targetPriceMinor: number } }>(`${baseUrl}/api/market/products/${marketProductId}/history?days=90`, { headers: sessionHeaders });
+    assert.equal(marketHistory.product.id, marketProductId);
+    assert.equal(marketHistory.watch.targetPriceMinor, 4000);
+
     const catalog = await apiJson<{ projects: Array<{ id: string; projectKey: string }> }>(`${baseUrl}/api/notifications/catalog`, { headers: sessionHeaders });
     const infrastructure = catalog.projects.find((project) => project.projectKey === "infrastructure");
     assert.ok(infrastructure);

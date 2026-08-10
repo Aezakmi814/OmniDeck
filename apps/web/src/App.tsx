@@ -6,13 +6,14 @@ import { AiTargetsPage } from "./pages/AiTargetsPage";
 import { AlertsPage } from "./pages/AlertsPage";
 import { EndpointsPage } from "./pages/EndpointsPage";
 import { LoginPage } from "./pages/LoginPage";
+import { MarketPage } from "./pages/MarketPage";
 import { NodesPage } from "./pages/NodesPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UsersPage } from "./pages/UsersPage";
 
-const knownPaths = new Set(["/", "/alerts", "/notifications", "/nodes", "/endpoints", "/ai-targets", "/users", "/settings", "/login"]);
+const knownPaths = new Set(["/", "/alerts", "/notifications", "/market", "/nodes", "/endpoints", "/ai-targets", "/users", "/settings", "/login"]);
 
 export default function App() {
   const path = usePath();
@@ -34,6 +35,7 @@ export default function App() {
   switch (path) {
     case "/alerts": page = <AlertsPage />; break;
     case "/notifications": page = <NotificationsPage />; break;
+    case "/market": page = <MarketPage />; break;
     case "/nodes": page = <NodesPage />; break;
     case "/endpoints": page = <EndpointsPage />; break;
     case "/ai-targets": page = <AiTargetsPage />; break;

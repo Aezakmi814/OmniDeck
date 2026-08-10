@@ -82,6 +82,7 @@ const builtinProjects = [
   { key: "infrastructure", module: "infrastructure", name: "基础设施", description: "服务器、NAS 与代理节点事件" },
   { key: "public-endpoints", module: "public-endpoints", name: "公网入口", description: "HTTP 入口与证书检查事件" },
   { key: "ai-upstreams", module: "ai-upstreams", name: "AI 上游", description: "模型上游可用性与余额事件" },
+  { key: "market-intelligence", module: "market-intelligence", name: "市场情报", description: "采购目标、价格与库存事件" },
 ] as const;
 
 const eventSchema = JSON.stringify({
@@ -97,8 +98,13 @@ const eventSchema = JSON.stringify({
 
 export function initializeNotificationCenter(): void {
   const now = nowIso();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+  const legacyMembersMigrated = getSetting("notification.builtin_members_migrated") === "1";
+  const projectsNeedingMembers: string[] = [];
   for (const project of builtinProjects) {
     const projectId = `builtin:${project.key}`;
+    const existed = one<{ id: string }>(db.prepare("SELECT id FROM notification_projects WHERE project_key=?"), project.key);
     db.prepare(`
       INSERT INTO notification_projects (id, module_key, project_key, name, description, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -106,6 +112,13 @@ export function initializeNotificationCenter(): void {
         description=excluded.description, updated_at=excluded.updated_at
     `).run(projectId, project.module, project.key, project.name, project.description, now, now);
     const actual = one<ProjectRow>(db.prepare("SELECT * FROM notification_projects WHERE project_key = ?"), project.key)!;
+    const memberMarker = `notification.builtin_members_initialized.${project.key}`;
+    if (getSetting(memberMarker) !== "1") {
+      if (!existed || !legacyMembersMigrated || project.key === "market-intelligence") {
+        projectsNeedingMembers.push(actual.id);
+      }
+      setSetting(memberMarker, "1");
+    }
     for (const lifecycle of ["opened", "recovered"] as const) {
       const eventKey = `alert.${lifecycle}`;
       db.prepare(`
@@ -133,13 +146,56 @@ export function initializeNotificationCenter(): void {
     }
   }
 
-  if (getSetting("notification.builtin_members_migrated") !== "1") {
+  const marketProject = one<ProjectRow>(db.prepare("SELECT * FROM notification_projects WHERE project_key='market-intelligence'"));
+  if (marketProject) {
+    db.prepare(`
+      INSERT INTO notification_event_types (
+        id, project_id, event_key, name, description, schema_json, title_template, body_template,
+        default_priority, lifecycle, created_at, updated_at
+      ) VALUES (?, ?, 'price.target_met', ?, ?, ?, ?, ?, 4, 'event', ?, ?)
+      ON CONFLICT(project_id, event_key) DO UPDATE SET name=excluded.name, description=excluded.description,
+        schema_json=excluded.schema_json, title_template=excluded.title_template,
+        body_template=excluded.body_template, default_priority=excluded.default_priority, updated_at=excluded.updated_at
+    `).run(
+      "builtin:market-intelligence:price.target_met",
+      marketProject.id,
+      "采购目标达成",
+      "商品有货且价格达到采购目标",
+      JSON.stringify({
+        type: "object",
+        required: ["productName", "price", "currency", "storeName", "offerTitle", "offerUrl"],
+        properties: {
+          productName: { type: "string", maxLength: 200 },
+          price: { type: "string", maxLength: 40 },
+          currency: { type: "string", maxLength: 10 },
+          storeName: { type: "string", maxLength: 200 },
+          offerTitle: { type: "string", maxLength: 500 },
+          offerUrl: { type: "string", maxLength: 2000 },
+          stock: { type: ["integer", "null"] },
+          snapshotId: { type: "string", maxLength: 100 },
+        },
+        additionalProperties: false,
+      }),
+      "{{productName}} 已达到采购价",
+      "{{storeName}}当前报价 {{price}} {{currency}}，已有库存。",
+      now,
+      now,
+    );
+  }
+
+  for (const projectId of projectsNeedingMembers) {
     db.prepare(`
       INSERT OR IGNORE INTO notification_project_members (project_id, user_id, permission, created_at)
-      SELECT p.id, u.id, 'read', ? FROM notification_projects p CROSS JOIN users u
-      WHERE p.id LIKE 'builtin:%' AND u.deleted_at IS NULL
-    `).run(now);
+      SELECT ?, u.id, 'read', ? FROM users u WHERE u.deleted_at IS NULL
+    `).run(projectId, now);
+  }
+  if (!legacyMembersMigrated) {
     setSetting("notification.builtin_members_migrated", "1");
+  }
+  db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
   }
 
   syncSmtpRecipientSubscription();
@@ -194,6 +250,46 @@ export function syncSmtpRecipientSubscription(): void {
   }
 }
 
+export function ensureMarketNotificationSubscription(userId: string): void {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+  const target = one<{ project_id: string; event_type_id: string }>(db.prepare(`
+    SELECT p.id AS project_id, et.id AS event_type_id
+    FROM notification_projects p
+    JOIN notification_event_types et ON et.project_id=p.id
+    WHERE p.project_key='market-intelligence' AND et.event_key='price.target_met'
+  `));
+  if (!target) throw new Error("Market notification event is not initialized");
+  db.prepare(`
+    INSERT OR IGNORE INTO notification_project_members (project_id, user_id, permission, created_at)
+    VALUES (?, ?, 'read', ?)
+  `).run(target.project_id, userId, nowIso());
+  const existing = one<{ id: string }>(db.prepare(`
+    SELECT id FROM notification_subscriptions
+    WHERE user_id=? AND enabled=1
+      AND (project_id IS NULL OR project_id=?)
+      AND (event_type_id IS NULL OR event_type_id=?)
+      AND min_priority <= 4
+    LIMIT 1
+  `), userId, target.project_id, target.event_type_id);
+  if (!existing) {
+    const now = nowIso();
+    db.prepare(`
+      INSERT INTO notification_subscriptions (
+        id, user_id, project_id, event_type_id, min_priority, channels_json,
+        email_addresses_json, cooldown_mode, cooldown_seconds, repeat_count, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 1, '["in_app"]', '[]', 'once', 1800, 1, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, event_type_id=excluded.event_type_id,
+        min_priority=1, channels_json='["in_app"]', enabled=1, updated_at=excluded.updated_at
+    `).run(`builtin:market-price:${userId}`, userId, target.project_id, target.event_type_id, now, now);
+  }
+  db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 export interface EmitNotificationInput {
   projectKey: string;
   eventKey: string;
@@ -204,6 +300,8 @@ export interface EmitNotificationInput {
   dedupeKey?: string;
   idempotencyKey?: string;
   occurredAt?: string;
+  targetUserId?: string;
+  deliveryFence?: () => boolean;
 }
 
 export interface EmitNotificationResult { eventId: string; duplicate: boolean; deliveries: number }
@@ -239,11 +337,12 @@ export function emitNotification(input: EmitNotificationInput): EmitNotification
   }
   const idempotencyFingerprint = hashToken(stableStringify({
     eventTypeId: type.id, priority, title, body, data, dedupeKey: input.dedupeKey ?? null,
-    lifecycle: type.lifecycle, occurredAt: normalizedOccurredAt,
+    lifecycle: type.lifecycle, occurredAt: normalizedOccurredAt, targetUserId: input.targetUserId ?? null,
   }));
 
   db.exec("BEGIN IMMEDIATE");
   try {
+    if (input.deliveryFence && !input.deliveryFence()) throw new Error("Notification delivery fence was lost");
     if (input.idempotencyKey) {
       const existing = one<{
         id: string; event_type_id: string; priority: number; title: string; body: string;
@@ -289,10 +388,11 @@ export function emitNotification(input: EmitNotificationInput): EmitNotification
       AND (s.project_id IS NULL OR s.project_id=?)
       AND (s.event_type_id IS NULL OR s.event_type_id=?)
       AND s.min_priority <= ?
+      AND (? IS NULL OR s.user_id=?)
       AND (u.role='admin' OR EXISTS (
         SELECT 1 FROM notification_project_members pm WHERE pm.project_id=? AND pm.user_id=u.id
       ))
-    `), type.project_id, type.id, priority, type.project_id);
+    `), type.project_id, type.id, priority, input.targetUserId ?? null, input.targetUserId ?? null, type.project_id);
 
     let deliveries = 0;
     for (const subscription of subscriptions) {

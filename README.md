@@ -18,6 +18,7 @@ The platform includes shared authentication, project permissions, navigation, du
 - Distributed probes assigned from the UI to selected agents.
 - Unified in-app, SMTP, and private per-user ntfy notifications with subscriptions, quiet hours, priorities, cooldowns, retries, and recovery handling.
 - Module/project registry, registered JSON Schema event types, hashed project tokens, idempotent external API, and `@omnideck/sdk`.
+- Procurement watchlists backed by the PriceAI public feed, target-price notifications, visible Top-offer comparison, and 90-day price/stock trends.
 - Prometheus metrics with per-location labels and 90-day retention.
 - Grafana dashboards behind the same OmniDeck login session.
 - Docker Compose deployment with no database, Prometheus, or Grafana port exposed publicly.
@@ -44,12 +45,17 @@ Prometheus
 Projects / modules
   -> @omnideck/sdk / HTTPS event API
   -> durable SQLite outbox
-  -> in-app / email / ntfy providers
+   -> in-app / email / ntfy providers
+
+Market source adapters
+  -> normalized products / offers / observations
+  -> user procurement rules
+  -> targeted notification events
 ```
 
 The central OmniDeck instance always executes each enabled probe. Agents provide additional geographic and network perspectives. Probe API keys are encrypted at rest on the control plane, sent only to assigned authenticated agents over HTTPS, held in memory, and never written into agent configuration.
 
-Notification architecture, API limits, and ntfy isolation are documented in [docs/notifications.md](docs/notifications.md). The machine-readable external event contract is [docs/openapi.yaml](docs/openapi.yaml).
+Notification architecture, API limits, and ntfy isolation are documented in [docs/notifications.md](docs/notifications.md). Market source boundaries and extension points are documented in [docs/market-intelligence.md](docs/market-intelligence.md). The machine-readable external event contract is [docs/openapi.yaml](docs/openapi.yaml).
 
 ## Quick Start
 
